@@ -1,0 +1,13 @@
+chromadb==1.5.9
+fastapi==0.141.1
+ffmpeg==1.4
+langgraph==1.2.11
+openai==3.13.0
+openai_whisper==20250625
+Pillow==12.3.0
+pytesseract==0.3.13
+python-dotenv==1.2.3
+redis==8.1.0
+Requests==2.34.2
+torch==2.14.0
+yt_dlp==2026.8.19
