@@ -1,13 +1,24 @@
-chromadb==1.5.9
-fastapi==0.141.1
-ffmpeg==1.4
-langgraph==1.2.11
-openai==3.13.0
-openai_whisper==20250625
-Pillow==12.3.0
-pytesseract==0.3.13
+# ── Web server ──
+fastapi==0.142.2
+uvicorn[standard]==0.54.0          # [standard] pulls in websockets, needed for the /query WebSocket
+
+# ── LLM / agent ──
+openai==3.23.0
 python-dotenv==1.2.3
+langgraph==1.2.12
+langgraph-checkpoint-redis==0.5.2
 redis==8.1.0
-Requests==2.34.2
-torch==2.14.0
-yt_dlp==2026.8.19
+
+# ── Vector store ──
+chromadb==1.5.9
+
+# ── Transcription ──
+# torch is installed separately in the Dockerfile from the CUDA wheel index;
+# for local installs pick the matching wheel at https://pytorch.org/get-started/locally/
+openai-whisper==20250625
+
+# ── Video / audio / OCR ──
+yt-dlp[default]==2026.8.19
+ffmpeg-python==0.2.0               # NOT the "ffmpeg" package — both provide `import ffmpeg`
+pytesseract==0.3.13
+Pillow==12.3.0
