@@ -1,0 +1,29 @@
+services:
+  app:
+    build: .
+    image: asktube
+    container_name: asktube-app
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      # Redis runs in its own container (redis-cache) publishing port 6379 on the host
+      REDIS_HOST: host.docker.internal
+      REDIS_PORT: "6379"
+      WHISPER_MODEL: base
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # needed on Linux; harmless on Docker Desktop
+    volumes:
+      - ./upload_videos:/app/upload_videos     # downloaded videos, transcripts, ChromaDB
+      - model-cache:/root/.cache               # Whisper + Chroma embedding models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  model-cache:

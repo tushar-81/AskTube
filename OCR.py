@@ -1,13 +1,17 @@
-import cv2 as cv
 from pathlib import Path
 import pytesseract
 from PIL import Image
+import ffmpeg
 import logging
+import os
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# In Docker tesseract is on PATH; on Windows fall back to the default install location
+tesseract_cmd = os.getenv("TESSERACT_CMD", r"C:\Program Files\Tesseract-OCR\tesseract.exe" if os.name == "nt" else None)
+if tesseract_cmd:
+    pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
 #upload_video/job_id will be parent_directory
 def get_frame(i:int, start:int, end:int, parent_dir:Path):
@@ -17,30 +21,29 @@ def get_frame(i:int, start:int, end:int, parent_dir:Path):
     end : ending time of the transcript
     parent_dir : job_id folder
     '''
-    
+
     video_path=f'{parent_dir}/video.mp4'
-    mid=(start+end)//2
-    cap=cv.VideoCapture(video_path)
+    mid=(start+end)/2
 
-    #checking the frames per second
-    fps=cap.get(cv.CAP_PROP_FPS)
+    images_folder=Path(parent_dir)/'images'
+    images_folder.mkdir(parents=True, exist_ok=True)
+    image_path=images_folder/f'{i}.jpg'
 
-    frame_index=int(mid*fps)
-    current_frame=cap.set(cv.CAP_PROP_POS_FRAMES, frame_index)
+    # ffmpeg (not OpenCV) so every codec YouTube serves works, including AV1
+    try:
+        (
+            ffmpeg
+            .input(video_path, ss=mid)
+            .output(str(image_path), vframes=1)
+            .overwrite_output()
+            .run(capture_stdout=True, capture_stderr=True))
+    except ffmpeg.Error as e:
+        raise ValueError(f'Frame at {mid}s not captured: {e.stderr.decode(errors="ignore")[-300:]}')
 
-    ret, frame=cap.read()
-   
-    if ret:
-        Parent_Dir=Path(parent_dir)
-        images_folder=Parent_Dir/'images'
-        images_folder.mkdir(parents=True, exist_ok=True)
+    if not image_path.exists():
+        raise ValueError(f'Frame at {mid}s not captured')
 
-        cv.imwrite(f'{images_folder}/{i}.jpg', frame)
-        return str(f'{images_folder}/{i}.jpg')
-    
-    else:
-        logging.error('Frames not captured')
-        raise
+    return str(image_path)
 
 def tesseract_OCR(image_path: str):
     try:

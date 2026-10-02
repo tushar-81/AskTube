@@ -9,6 +9,7 @@ from redis import Redis
 from pathlib import Path
 import logging
 import json
+import os
 
 logging.basicConfig(
     level=logging.ERROR,
@@ -32,7 +33,9 @@ Previous retrieved knowledge:
 {knowledge_history}
 
 Act as a routing classifier for a video question-answering assistant.
-
+The user has already uploaded a video and is chatting about it. Questions such as
+"what is the main topic", "what is discussed", "summarize", "what does he say about X"
+always refer to that video, even when the word "video" is not used.
 
 
 Classify the user's message into exactly one category:
@@ -68,6 +71,8 @@ IMPORTANT:
 - If the user asks about something from previous conversation, choose History_Only.
 - If the user asks about the uploaded video, choose Retrieval_Required.
 - Do not choose General when previous conversation or video information is required.
+- Choose General only for greetings, small talk, or questions clearly unrelated to the video.
+- When unsure, choose Retrieval_Required.
 
 
 Respond only in JSON.
@@ -223,8 +228,8 @@ def Builder_workflow():
 def Chatbot_initiate(job_id:str):
     try:
         redis_client = Redis(
-        host='localhost',
-        port=6379,
+        host=os.getenv('REDIS_HOST', 'localhost'),
+        port=int(os.getenv('REDIS_PORT', 6379)),
         db=0,
         decode_responses=False)
 

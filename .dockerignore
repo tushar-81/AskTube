@@ -1,0 +1,11 @@
+.env
+.git
+.venv
+myenv
+__pycache__
+**/__pycache__
+upload_videos
+cookies
+testing.ipynb
+*.md
+LICENSE

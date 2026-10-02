@@ -1,6 +1,6 @@
 .env
 testing.ipynb
-myenv
+.venv
 cookies
 upload_videos
 __pycache__

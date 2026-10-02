@@ -75,8 +75,8 @@ def perform_OCR(query_result: dict, parent_dir:Path):
             logging.info('OCR performed')
             ocr_data.append(ocr_text)
         except Exception as e:
+            # OCR is extra context — a bad frame shouldn't fail the whole answer
             logging.error(e)
-            raise
     return ocr_data
 
     

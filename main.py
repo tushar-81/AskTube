@@ -10,6 +10,7 @@ import shutil
 import uuid
 import whisper
 import json
+import os
 
 
 from graph.graph_nodes import Chatbot_initiate
@@ -22,7 +23,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(filename)s:%(lineno)d | %(funcName)s() | %(message)s"
 )
 
-UPLOAD_DIR=Path('upload_videos')
+UPLOAD_DIR=Path(os.getenv('UPLOAD_DIR', 'upload_videos'))
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 app=FastAPI()
@@ -36,9 +37,10 @@ app.add_middleware(
 )
 
 # Your existing mount and routes follow...
-app.mount("/videos", StaticFiles(directory="upload_videos"), name="videos")
+app.mount("/videos", StaticFiles(directory=UPLOAD_DIR), name="videos")
 app.mount("/static", StaticFiles(directory="static"), name="static")
-model = whisper.load_model("base", device='cuda')
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = whisper.load_model(os.getenv('WHISPER_MODEL', 'base'), device=device)
 
 
 
@@ -57,7 +59,8 @@ async def serve_frontend():
     return FileResponse('frontend2.html')
 
 @app.post("/upload-url")
-async def upload_url(bg:BackgroundTasks,url:str):
+# Plain def: FastAPI runs it in a worker thread so the blocking download doesn't freeze the server
+def upload_url(bg:BackgroundTasks,url:str):
     job_id=str(uuid.uuid4())
     parent_dir=UPLOAD_DIR/job_id
     parent_dir.mkdir(parents=True, exist_ok=True)
@@ -97,7 +100,7 @@ async def get_status(job_id: str):
 
 
 @app.post("/upload/{job_id}")
-async def save_DB(job_id: str):
+def save_DB(job_id: str):
     audio_path = UPLOAD_DIR / job_id / "audio.wav"
 
     if not audio_path.exists():
@@ -201,7 +204,13 @@ async def query(websocket: WebSocket,job_id:str):
         while True:
             data = await websocket.receive_text()
             new_state['user_message']=data
-            result=workflow.invoke(new_state, config=config)   
+            try:
+                result=workflow.invoke(new_state, config=config)
+            except Exception:
+                # Keep the socket open so the user can retry instead of a silent disconnect
+                logging.exception("Error while answering query")
+                await websocket.send_text("Sorry, something went wrong while answering. Please try again.")
+                continue
             response=result['LLM_response']
             await websocket.send_text(response)
             new_state=result

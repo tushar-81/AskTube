@@ -2,6 +2,7 @@ from yt_dlp import YoutubeDL
 from pathlib import Path
 import logging
 import ffmpeg
+import os
 
 
 logging.basicConfig(
@@ -11,16 +12,21 @@ logging.basicConfig(
 
 def download_yt(video_dir, url:str):
     ydl_opts = {
-    "format": "bv*+ba/b",
+    # Prefer H.264 <=1080p: plays in every browser and avoids huge 4K AV1/VP9 downloads
+    "format": "bv*[vcodec^=avc1][height<=1080]+ba[ext=m4a]/b[vcodec^=avc1][height<=1080]/bv*[height<=1080]+ba/b",
     "merge_output_format": "mp4",
     "outtmpl": str(video_dir / "video.%(ext)s"),
     "noplaylist": True,
-    "ffmpeg_location": r"C:/ffmpeg/bin",
+    # YouTube throttles single long streams to ~50 KB/s; 10 MB range requests avoid it
+    "http_chunk_size": 10 * 1024 * 1024,
     "quiet": False,
     "ignoreerrors": False
 }
+    # On Windows ffmpeg is usually not on PATH; in Docker it is installed via apt
+    ffmpeg_location = os.getenv("FFMPEG_LOCATION", r"C:/ffmpeg/bin" if os.name == "nt" else None)
+    if ffmpeg_location:
+        ydl_opts["ffmpeg_location"] = ffmpeg_location
 
-    
     logging.info('Downloading Youtube video')
     with YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
